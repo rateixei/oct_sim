@@ -5,3 +5,5 @@
 include/VectorDict*
 *.root
 *.log.*
+bin
+bin/*
