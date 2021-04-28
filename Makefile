@@ -2,10 +2,10 @@ ROOTCFLAGS    = $(shell root-config --cflags)
 ROOTGLIBS     = $(shell root-config --glibs)
 
 CXX            = g++
-CXXFLAGS       = -fPIC -Wall -O3 -g -std=c++11 -Wc++17-extensions 
+CXXFLAGS       = -fPIC -Wall -O3 -g -std=c++11
 CXXFLAGS       += $(filter-out -stdlib=libc++ -pthread , $(ROOTCFLAGS))
 GLIBS          = $(filter-out -stdlib=libc++ -pthread , $(ROOTGLIBS))
-RPATH 		   = -rpath /Users/anthonybadea/builddir/lib
+RPATH 		   = 
 
 INCLUDEDIR       = ./include/
 INCLUDEDIR		 = $(PWD)/include/
@@ -26,7 +26,7 @@ DICT_FILES := $(wildcard include/*.pcm)
 
 MKDIR_BIN=mkdir -p $(PWD)/bin
 
-all: mkdirBin VectorDict sim testGBT sim_PCBEff_Modular validate_changes tpcosmics
+all: mkdirBin VectorDict sim testGBT sim_PCBEff_Modular validate_changes
 cosmics: mkdirBin VectorDict tpcosmics
 
 mkdirBin:
@@ -35,6 +35,7 @@ mkdirBin:
 VectorDict: $(INCLUDEDIR)VectorDict.hh
 	rootcint -f $(INCLUDEDIR)VectorDict.cxx -c $(CXXFLAGS) -p $ $<
 	touch $(INCLUDEDIR)VectorDict.cxx
+	cp $(INCLUDEDIR)VectorDict_rdict.pcm $(BINDIR)
 
 sim:  $(SRCDIR)sim.C $(OBJ_FILES) $(HH_FILES) $(DICT_FILES)
 	$(CXX) $(CXXFLAGS) $(RPATH) -o $(BINDIR)sim $ $< $(GLIBS) 
