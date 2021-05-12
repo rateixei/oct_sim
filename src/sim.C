@@ -1011,6 +1011,8 @@ int main(int argc, char* argv[]) {
 
   double real_x_muon; // x-location of a real muon
   double real_y_muon; // y-location of a real muon
+  double real_th_muon;
+  double real_ph_muon;
 
   vector<int> iRoad_x; // ??
   vector<int> iRoad_u; // ??
@@ -1025,6 +1027,8 @@ int main(int argc, char* argv[]) {
 
   vector<double> trig_x; // x-locations of all triggers
   vector<double> trig_y; // y-locations of all triggers
+  // vector<double> trig_th; // y-locations of all triggers
+  // vector<double> trig_ph; // y-locations of all triggers
     
   vector<double> dtheta; // ??
 
@@ -1036,6 +1040,8 @@ int main(int argc, char* argv[]) {
 
     tree->Branch("real_x_muon",  &real_x_muon);
     tree->Branch("real_y_muon",  &real_y_muon);
+    tree->Branch("real_th_muon",  &real_th_muon);
+    tree->Branch("real_ph_muon",  &real_ph_muon);
 
     tree->Branch("iRoad_x", &iRoad_x);
     tree->Branch("iRoad_u", &iRoad_u);
@@ -1048,6 +1054,8 @@ int main(int argc, char* argv[]) {
     tree->Branch("N_xmuon", &N_xmuon);
     tree->Branch("trig_x", &trig_x);
     tree->Branch("trig_y", &trig_y);
+    // tree->Branch("trig_th", &trig_th);
+    // tree->Branch("trig_ph", &trig_ph);
     tree->Branch("dtheta", &dtheta);
 
   }
@@ -1127,320 +1135,378 @@ int main(int argc, char* argv[]) {
   time_t curr_time;
   for ( int i = 0; i < nevents; i++){
 
-    if (write_tree){
-      EventNum++;
-      NEvent = nevents;
-      real_x_muon = -1;
-      real_y_muon = -1;
-      iRoad_x.clear();
-      iRoad_u.clear();
-      iRoad_v.clear();
+      if (write_tree){
+                EventNum++;
+                NEvent = nevents;
+                real_x_muon = -1;
+                real_y_muon = -1;
+                iRoad_x.clear();
+                iRoad_u.clear();
+                iRoad_v.clear();
 
-      Hit_strips.clear();
-      Hit_planes.clear();
-      Hit_ages.clear();
-      trigger_BC.clear();
-      N_muon.clear();
-      N_xmuon.clear();
-      trig_x.clear();
-      trig_y.clear();
-      dtheta.clear();
-    }
-
-    if (nevents > 10){
-      if (i % ((int)nevents/10) == 0){
-        curr_time = time(NULL);
-        progress(curr_time-timer, i, nevents);
+                Hit_strips.clear();
+                Hit_planes.clear();
+                Hit_ages.clear();
+                trigger_BC.clear();
+                N_muon.clear();
+                N_xmuon.clear();
+                trig_x.clear();
+                trig_y.clear();
+                // trig_th.clear();
+                // trig_ph.clear();
+                dtheta.clear();
       }
-    }
-    muon_trig_ok = false;
 
-    // generate muon
-     double co = 2.7;
-    co = 0;
-    vector<double> zpos = {-co, 11.2+co, 32.4-co, 43.6+co, 
+      if (nevents > 10){
+        if (i % ((int)nevents/10) == 0){
+          curr_time = time(NULL);
+          progress(curr_time-timer, i, nevents);
+        }
+      }
+
+      muon_trig_ok = false;
+
+      // generate muon
+      double co = 2.7;
+      co = 0;
+      vector<double> zpos = {-co, 11.2+co, 32.4-co, 43.6+co, 
                            113.6-co, 124.8+co, 146.0-co, 157.2+co};
-    vector<double> xpos(NPLANES,-1.);
-    vector<double> ypos(NPLANES,-1.);
+      vector<double> xpos(NPLANES,-1.);
+      vector<double> ypos(NPLANES,-1.);
     
-    double xmuon,ymuon,thx,thy;
-    std::tie(xmuon,ymuon,thx,thy) = generate_muon(xpos, ypos, zpos, string(chamberType), angcos, angx, angy, trapflag);
+      double xmuon,ymuon,thx,thy;
+      std::tie(xmuon,ymuon,thx,thy) = generate_muon(xpos, ypos, zpos, string(chamberType), angcos, angx, angy, trapflag);
 
-    real_x_muon = xmuon;
-    real_y_muon = ymuon;
+      real_x_muon = xmuon;
+      real_y_muon = ymuon;
+      real_th_muon = thx * 180/TMath::Pi();
+      real_ph_muon = thy * 180/TMath::Pi();
 
-    if (db){
-      printf("generated muon! @ (%4.4f,%4.4f)\n",xmuon,ymuon);
-    }
-    hists_2d["h_xy_all"]->Fill(xmuon, ymuon);
-    hists["h_theta"]->Fill(thx * 180/TMath::Pi());
-    hists["h_phi"]  ->Fill(thy * 180/TMath::Pi());
+      if (db){
+        printf("generated muon! @ (%4.4f,%4.4f)\n",xmuon,ymuon);
+      }
 
-    vector<int> oct_hitmask = oct_response(xpos, ypos, zpos, mm_eff);
-    if (killran)
-      oct_hitmask[ran->Integer(8)] = 0;
-    if (killxran)
-      oct_hitmask[vector<int> {0, 1, 6, 7}[ran->Integer(4)]] = 0;
-    if (killuvran)
-      oct_hitmask[vector<int> {2, 3, 4, 5}[ran->Integer(4)]] = 0;
+      hists_2d["h_xy_all"]->Fill(xmuon, ymuon);
+      hists["h_theta"]->Fill(real_th_muon);
+      hists["h_phi"]  ->Fill(real_ph_muon);
 
-    vector<int> art_bc(NPLANES, -1.);
-    double smallest_bc = 999999.;
+
+      vector<int> oct_hitmask = oct_response(xpos, ypos, zpos, mm_eff);
+      if (killran){
+        oct_hitmask[ran->Integer(8)] = 0;
+      }
+      if (killxran){
+        oct_hitmask[vector<int> {0, 1, 6, 7}[ran->Integer(4)]] = 0;
+      }
+      if (killuvran){
+        oct_hitmask[vector<int> {2, 3, 4, 5}[ran->Integer(4)]] = 0;
+      }
+
+      vector<int> art_bc(NPLANES, -1.);
+      double smallest_bc = 999999.;
     
-    vector<Hit*> hits;
+      vector<Hit*> hits;
 
-    int n_u = 0;
-    int n_v = 0;
-    int n_x1 = 0;
-    int n_x2 = 0;
+      int n_u = 0;
+      int n_v = 0;
+      int n_x1 = 0;
+      int n_x2 = 0;
     
-    double art_time;
+      double art_time;
     
-    double strip, strip_smear;
-    for ( int j = 0; j < NPLANES; j++){
-      if (oct_hitmask[j] == 1){
-        if (j < 2)
-          n_x1++;
-        else if (j > 5)
-          n_x2++;
-        else if (j == 2|| j ==4)
-          n_u++;
-        else
-          n_v++;
-      art_time = ran->Gaus(400.,(double)(sig_art));
-      art_bc[j] = (int)floor(art_time/25.);
-      Hit* newhit = nullptr;
+      double strip, strip_smear;
+      for ( int j = 0; j < NPLANES; j++){
 
-      strip = GEOMETRY->Get(j).channel_from_pos(xpos[j],ypos[j]);
-      if (smear_art){
-        strip_smear = round(ran->Gaus(strip,m_sig_art_x));
+        if (oct_hitmask[j] == 1){
+
+          if (j < 2){
+            n_x1++;
+          }
+          else if (j > 5){
+            n_x2++;
+          }
+          else if (j == 2|| j ==4){
+            n_u++;
+          }
+          else{
+            n_v++;
+          }
+
+          art_time = ran->Gaus(400.,(double)(sig_art));
+          art_bc[j] = (int)floor(art_time/25.);
+          Hit* newhit = nullptr;
+
+          strip = GEOMETRY->Get(j).channel_from_pos(xpos[j],ypos[j]);
+          if (smear_art){
+            strip_smear = round(ran->Gaus(strip,m_sig_art_x));
+          }
+          else if (funcsmear_art){
+            strip_smear = round( strip + func->GetRandom(-10, 10)/0.4 );
+          }
+          else{
+            strip_smear = strip;
+          }
+
+          // sanity check
+          if (j < 2 || j > 5){
+            hists["h_xres_strip"]->Fill(xpos[j] - (GEOMETRY->Get(j).Origin().X() + GEOMETRY->Get(j).LocalXatYbegin(strip_smear)));
+          }
+
+          newhit = new Hit(j, art_bc[j], strip_smear, false, *GEOMETRY);
+          //newhit = new Hit(j, art_bc[j], xpos[j], ypos[j], false, *GEOMETRY);
+          if (!bkgonly){
+	          hits.push_back(newhit);
+          }
+        }
+      } //END NPLANES
+
+      if (db){
+        cout << "N muonhits: " << hits.size() << endl;
+        for (unsigned int j = 0; j < hits.size(); j++){
+          printf("Muon hit (board, BC, strip): (%d,%d,%4.4f)\n", hits[j]->MMFE8Index(),hits[j]->Age(),hits[j]->Channel());
+        }
       }
-      else if (funcsmear_art){
-        strip_smear = round( strip + func->GetRandom(-10, 10)/0.4 );
-      }
-      else{
-        strip_smear = strip;
+    
+      if (n_x1 > 0 && n_x2 > 0 && n_u > 0 && n_v > 0){
+        nmuon_trig++;
+        muon_trig_ok= true; 
       }
 
-      // sanity check
-      if (j < 2 || j > 5)
-        hists["h_xres_strip"]->Fill(xpos[j] - (GEOMETRY->Get(j).Origin().X() + GEOMETRY->Get(j).LocalXatYbegin(strip_smear)));
-
-      newhit = new Hit(j, art_bc[j], strip_smear, false, *GEOMETRY);
-      //newhit = new Hit(j, art_bc[j], xpos[j], ypos[j], false, *GEOMETRY);
-      if (!bkgonly)
-	hits.push_back(newhit);
+      for (unsigned int j = 0; j < art_bc.size(); j++){
+        if (art_bc[j] == -1){
+          continue;
+        }
+        else if (art_bc[j] < smallest_bc){
+          smallest_bc = art_bc[j];
+        }
       }
-    }
 
-    if (db){
-      cout << "N muonhits: " << hits.size() << endl;
-      for (unsigned int j = 0; j < hits.size(); j++){
-        printf("Muon hit (board, BC, strip): (%d,%d,%4.4f)\n", hits[j]->MMFE8Index(),hits[j]->Age(),hits[j]->Channel());
+      // assume bkg rate has oct_response factored in!
+    
+      vector<Hit*> all_hits = hits;    
+
+      if (bkgflag){
+        vector<Hit*> bkghits = generate_bkg(smallest_bc, *GEOMETRY, bkgrate, string(chamberType));
+
+        if (db){
+          cout << "Nbkg hits: " << bkghits.size() << endl;
+        }
+
+        all_hits.insert(all_hits.end(), bkghits.begin(), bkghits.end());
       }
-    }
-    if (n_x1 > 0 && n_x2 > 0 && n_u > 0 && n_v > 0){
-      nmuon_trig++;
-      muon_trig_ok= true; 
-    }
 
-    for (unsigned int j = 0; j < art_bc.size(); j++){
-      if (art_bc[j] == -1)
+
+      for (unsigned int ihit = 0; ihit < all_hits.size(); ihit++){
+        int ib = all_hits[ihit]->MMFE8Index();
+        if (all_hits[ihit]->IsNoise() && (ib < 2 || ib > 5)){
+	        hists["h_dx"]->Fill(GEOMETRY->Get(ib).LocalXatYend(all_hits[ihit]->Channel())+GEOMETRY->Get(ib).Origin().X()-xmuon);
+        }
+      }
+
+      for (auto road: m_roads){
+        road->Reset();
+      }
+
+      if (db){
+        cout << "Number of roads: " << m_roads.size() << endl;
+      }
+
+
+      if (db){
+        cout << "Total number of hits: " << all_hits.size() << endl;
+      }
+
+      vector<slope_t> m_slopes;
+      int ntrigroads;
+      int ntrigroads_bkgonly = 0;
+
+      std::tie(ntrigroads, m_slopes) = finder(all_hits, smallest_bc, m_roads, (pltflag||write_tree), ideal_vmm, ideal_addc, ideal_tp, i);
+
+      hists["h_ntrig"]->Fill(ntrigroads);
+
+      if (write_tree){
+        Ntriggers = ntrigroads;
+      }
+
+      for (auto sl: m_slopes){
+        if (sl.imuonhits == 0){
+          hists_2d["h_xy_bkg"]->Fill(sl.xavg, sl.yavg);
+        }
+      }
+
+      if (db){
+        cout << "Ntriggered roads: " << ntrigroads << endl;
+      }
+
+      if (ntrigroads == 0){
+
+        if (angx < 0.1 && angy < 0.1 && !angcos){
+          cout << "no triggered roads?" << endl;
+        }
+
+        if (write_tree){
+          tree->Fill();
+        }
+        
         continue;
-      else if (art_bc[j] < smallest_bc)
-        smallest_bc = art_bc[j];
-    }
+      }
 
-    // assume bkg rate has oct_response factored in!
-    
-    vector<Hit*> all_hits = hits;    
-    if (bkgflag){
-      vector<Hit*> bkghits = generate_bkg(smallest_bc, *GEOMETRY, bkgrate, string(chamberType));
-      if (db)
-        cout << "Nbkg hits: " << bkghits.size() << endl;
-      all_hits.insert(all_hits.end(), bkghits.begin(), bkghits.end());
-    }
-
-
-    for (unsigned int ihit = 0; ihit < all_hits.size(); ihit++){
-      int ib = all_hits[ihit]->MMFE8Index();
-      if (all_hits[ihit]->IsNoise() &&
-	  (ib < 2 || ib > 5))
-	hists["h_dx"]->Fill(GEOMETRY->Get(ib).LocalXatYend(all_hits[ihit]->Channel())+GEOMETRY->Get(ib).Origin().X()-xmuon);
-    }
-
-    for (auto road: m_roads)
-      road->Reset();
-    if (db)
-      cout << "Number of roads: " << m_roads.size() << endl;
-
-
-    if (db)
-      cout << "Total number of hits: " << all_hits.size() << endl;
-
-    vector<slope_t> m_slopes;
-    int ntrigroads;
-    int ntrigroads_bkgonly = 0;
-
-    std::tie(ntrigroads, m_slopes) = finder(all_hits, smallest_bc, m_roads, (pltflag||write_tree), ideal_vmm, ideal_addc, ideal_tp, i);
-    hists["h_ntrig"]->Fill(ntrigroads);
-    if (write_tree)
-      Ntriggers = ntrigroads;
-    for (auto sl: m_slopes)
-      if (sl.imuonhits == 0)
-        hists_2d["h_xy_bkg"]->Fill(sl.xavg, sl.yavg);
-
-    if (db)
-      cout << "Ntriggered roads: " << ntrigroads << endl;
-    if (ntrigroads == 0){
-      //      if (db)
-      if (angx < 0.1 && angy < 0.1 && !angcos)
-        cout << "no triggered roads?" << endl;
-      if (write_tree)
-        tree->Fill();
-      continue;
-    }
-
-    // got a trigger, but none with real hits
-    if (m_slopes.size() == 0 && ntrigroads != 0 ){
-      nevent_allnoise++;
+      // got a trigger, but none with real hits
+      if (m_slopes.size() == 0 && ntrigroads != 0 ){
+        nevent_allnoise++;
 //       if (db)
 //         cout << "Didn't trigger with real hits:( " << endl;
 //       continue;
-    }
-
-    slope_t myslope;
-    myslope.mxl = 0.;
-    myslope.count = 0;
-    myslope.xavg = 0.;
-    myslope.yavg = 0.;
-    myslope.xcenter = 0.;
-    myslope.ycenter = 0.;
-    myslope.imuonhits = 0;
-    myslope.xmuon = 0;
-    myslope.age = -999;
-    // pick road with the most muon x hits
-    int most_hits = 0;
-    vector<int> iroads = {};
-    int myage = smallest_bc-bc_wind*3;
-    int ntrig_age = 0;
-
-    vector <int> slopehits_ch;
-    vector <int> slopehits_planes;
-    vector <int> slopehits_ages;
-
-    for (unsigned int k = 0; k < m_slopes.size(); k++){
-      while (m_slopes[k].age != myage){
-        hists_2d["h_ntrig_bc"]->Fill(myage,ntrig_age);
-        myage++;
-        ntrig_age = 0;
       }
-      ntrig_age++;
-      
-      if (write_tree) {
-        iRoad_x.push_back(m_slopes[k].iroad);
-        iRoad_u.push_back(m_slopes[k].iroadu);
-        iRoad_v.push_back(m_slopes[k].iroadv);
-        
-        slopehits_ch.clear();
-        slopehits_ages.clear();
-        slopehits_planes.clear();
-        
-        for (unsigned int n = 0; n < m_slopes[k].slopehits.size(); n++) {
-          slopehits_ch.push_back(m_slopes[k].slopehits[n].Channel());
-          slopehits_planes.push_back(m_slopes[k].slopehits[n].MMFE8Index());
-          slopehits_ages.push_back(m_slopes[k].slopehits[n].Age());
+
+      slope_t myslope;
+      myslope.mxl = 0.;
+      myslope.count = 0;
+      myslope.xavg = 0.;
+      myslope.yavg = 0.;
+      myslope.xcenter = 0.;
+      myslope.ycenter = 0.;
+      myslope.imuonhits = 0;
+      myslope.xmuon = 0;
+      myslope.age = -999;
+      // pick road with the most muon x hits
+      int most_hits = 0;
+      vector<int> iroads = {};
+      int myage = smallest_bc-bc_wind*3;
+      int ntrig_age = 0;
+
+      vector <int> slopehits_ch;
+      vector <int> slopehits_planes;
+      vector <int> slopehits_ages;
+
+      for (unsigned int k = 0; k < m_slopes.size(); k++){
+
+        while (m_slopes[k].age != myage){
+          hists_2d["h_ntrig_bc"]->Fill(myage,ntrig_age);
+          myage++;
+          ntrig_age = 0;
         }
-        
-        trigger_BC.push_back(m_slopes[k].age);
-        N_muon.push_back(m_slopes[k].imuonhits);
-        N_xmuon.push_back(m_slopes[k].xmuon);
-        Hit_strips.push_back(slopehits_ch);
-        Hit_planes.push_back(slopehits_planes);
-        Hit_ages.push_back(slopehits_ages);
-        trig_x.push_back(m_slopes[k].xavg);
-        trig_y.push_back(m_slopes[k].yavg);
-        dtheta.push_back( TMath::ATan(m_slopes[k].mxl) );
+
+        ntrig_age++;
+      
+        if (write_tree) {
+          iRoad_x.push_back(m_slopes[k].iroad);
+          iRoad_u.push_back(m_slopes[k].iroadu);
+          iRoad_v.push_back(m_slopes[k].iroadv);
+          
+          slopehits_ch.clear();
+          slopehits_ages.clear();
+          slopehits_planes.clear();
+          
+          for (unsigned int n = 0; n < m_slopes[k].slopehits.size(); n++) {
+            slopehits_ch.push_back(m_slopes[k].slopehits[n].Channel());
+            slopehits_planes.push_back(m_slopes[k].slopehits[n].MMFE8Index());
+            slopehits_ages.push_back(m_slopes[k].slopehits[n].Age());
+          }
+          
+          trigger_BC.push_back(m_slopes[k].age);
+          N_muon.push_back(m_slopes[k].imuonhits);
+          N_xmuon.push_back(m_slopes[k].xmuon);
+          Hit_strips.push_back(slopehits_ch);
+          Hit_planes.push_back(slopehits_planes);
+          Hit_ages.push_back(slopehits_ages);
+          trig_x.push_back(m_slopes[k].xavg);
+          trig_y.push_back(m_slopes[k].yavg);
+          dtheta.push_back( TMath::ATan(m_slopes[k].mxl) );
+        }
+
+        if (m_slopes[k].imuonhits == 0){
+          ntrigroads_bkgonly++;
+        }
+
+        if (m_slopes[k].imuonhits < most_hits){
+          continue;
+        }
+
+        if (m_slopes[k].imuonhits > most_hits){
+          iroads.clear();
+        }
+
+        iroads.push_back(k);
+        most_hits = m_slopes[k].imuonhits;
+      }// END SLOPES
+
+      hists_2d["h_ntrig_bc"]->Fill(myage,ntrig_age);
+      myage++;
+
+      while (myage < smallest_bc+bc_wind*2){
+        hists_2d["h_ntrig_bc"]->Fill(myage,0);
+        myage++;
+      }
+      
+      hists["h_ntrig_bkgonly"]->Fill(ntrigroads_bkgonly);
+
+      int the_chosen_one = iroads[ran->Integer((int)(iroads.size()))];
+      myslope.count       = m_slopes[the_chosen_one].count;
+      myslope.mxl         = m_slopes[the_chosen_one].mxl;
+      myslope.uvbkg       = m_slopes[the_chosen_one].uvbkg;
+      myslope.xavg        = m_slopes[the_chosen_one].xavg;
+      myslope.yavg        = m_slopes[the_chosen_one].yavg;
+      myslope.xcenter     = m_slopes[the_chosen_one].xcenter;
+      myslope.ycenter     = m_slopes[the_chosen_one].ycenter;
+      myslope.iroad       = m_slopes[the_chosen_one].iroad;
+      myslope.imuonhits   = m_slopes[the_chosen_one].imuonhits;
+
+      if (pltflag){
+        myslope.slopehits = m_slopes[the_chosen_one].slopehits;
       }
 
-      if (m_slopes[k].imuonhits == 0)
-        ntrigroads_bkgonly++;
-      if (m_slopes[k].imuonhits < most_hits)
-        continue;
-      if (m_slopes[k].imuonhits > most_hits)
-        iroads.clear();
-      iroads.push_back(k);
-      most_hits = m_slopes[k].imuonhits;
-    }
-    hists_2d["h_ntrig_bc"]->Fill(myage,ntrig_age);
-    myage++;
-    while (myage < smallest_bc+bc_wind*2){
-      hists_2d["h_ntrig_bc"]->Fill(myage,0);
-      myage++;
-    }
-    hists["h_ntrig_bkgonly"]->Fill(ntrigroads_bkgonly);
+      if (fabs(myslope.xavg-xmuon) > 5. && pltflag){
+        TString test = Form("event_disp_%d",i);
+        TString test2 = Form("event_disp_alt_%d",i);
+        plttrk(myslope.slopehits, true, test, ntrigroads, fout);
+      }
 
-    int the_chosen_one = iroads[ran->Integer((int)(iroads.size()))];
-    myslope.count       = m_slopes[the_chosen_one].count;
-    myslope.mxl         = m_slopes[the_chosen_one].mxl;
-    myslope.uvbkg       = m_slopes[the_chosen_one].uvbkg;
-    myslope.xavg        = m_slopes[the_chosen_one].xavg;
-    myslope.yavg        = m_slopes[the_chosen_one].yavg;
-    myslope.xcenter     = m_slopes[the_chosen_one].xcenter;
-    myslope.ycenter     = m_slopes[the_chosen_one].ycenter;
-    myslope.iroad       = m_slopes[the_chosen_one].iroad;
-    myslope.imuonhits   = m_slopes[the_chosen_one].imuonhits;
-    if (pltflag)
-      myslope.slopehits = m_slopes[the_chosen_one].slopehits;
-
-    if (fabs(myslope.xavg-xmuon) > 5. && pltflag){
-      TString test = Form("event_disp_%d",i);
-      TString test2 = Form("event_disp_alt_%d",i);
-      plttrk(myslope.slopehits, true, test, ntrigroads, fout);
-    }
-    double deltaMX = TMath::ATan(myslope.mxl); // change to subtract angle of muon, which is 0 right now
+      double deltaMX = TMath::ATan(myslope.mxl); // change to subtract angle of muon, which is 0 right now
       
-    if (db) {
-      printf ("art (x,y): (%4.4f,%4.4f)", myslope.xavg, myslope.yavg);
-      cout << endl;
-      cout << endl;
-    }
+      if (db) {
+        printf ("art (x,y): (%4.4f,%4.4f)", myslope.xavg, myslope.yavg);
+        cout << endl;
+        cout << endl;
+      }
 
-    hists["h_mxres"]->Fill(deltaMX*1000.);
-    hists["h_yres"]->Fill(myslope.yavg-ymuon);
-    hists["h_xres"]->Fill(myslope.xavg-xmuon);
-    hists["h_yres_center"]->Fill(myslope.ycenter-ymuon);
-    hists["h_xres_center"]->Fill(myslope.xcenter-xmuon);
-    hists["h_nmu"]->Fill(myslope.imuonhits);
-    hists_2d["h_nmuvsdx"]->Fill(myslope.imuonhits, myslope.xavg-xmuon);
-    if (muon_trig_ok)
-      neventtrig++;
-    else
-      extratrig++;
+      hists["h_mxres"]->Fill(deltaMX*1000.);
+      hists["h_yres"]->Fill(myslope.yavg-ymuon);
+      hists["h_xres"]->Fill(myslope.xavg-xmuon);
+      hists["h_yres_center"]->Fill(myslope.ycenter-ymuon);
+      hists["h_xres_center"]->Fill(myslope.xcenter-xmuon);
+      hists["h_nmu"]->Fill(myslope.imuonhits);
+      hists_2d["h_nmuvsdx"]->Fill(myslope.imuonhits, myslope.xavg-xmuon);
 
-    hists["h_nuv_bkg"]->Fill(myslope.uvbkg);
-    hists["h_nx_bkg"]->Fill(myslope.xbkg);
-    hists_2d["h_xres_nxbkg"]->Fill(myslope.xbkg,myslope.xavg-xmuon);
-    hists_2d["h_xres_nxmuon"]->Fill(myslope.xmuon,myslope.xavg-xmuon);
+      if (muon_trig_ok)
+        neventtrig++;
+      else
+        extratrig++;
 
-    hists["h_theta_trig"]->Fill(thx * 180/TMath::Pi());
-    hists["h_phi_trig"]  ->Fill(thy * 180/TMath::Pi());
+      hists["h_nuv_bkg"]->Fill(myslope.uvbkg);
+      hists["h_nx_bkg"]->Fill(myslope.xbkg);
+      hists_2d["h_xres_nxbkg"]->Fill(myslope.xbkg,myslope.xavg-xmuon);
+      hists_2d["h_xres_nxmuon"]->Fill(myslope.xmuon,myslope.xavg-xmuon);
 
-    if (myslope.uvbkg > 0){
-      nevent_uvbkg++;
-      nuv_bkg += myslope.uvbkg;
-      if (myslope.uvbkg == 1)
-        nevent_uvbkg1++;
-      else if (myslope.uvbkg== 2)
-        nevent_uvbkg2++;
-      else if (myslope.uvbkg== 3)
-        nevent_uvbkg3++;
-      else if (myslope.uvbkg== 4)
-        nevent_uvbkg4++;
-    }
+      hists["h_theta_trig"]->Fill(thx * 180/TMath::Pi());
+      hists["h_phi_trig"]  ->Fill(thy * 180/TMath::Pi());
 
-    if (m_slopes.size() > 0 && muon_trig_ok)
+      if (myslope.uvbkg > 0){
+        nevent_uvbkg++;
+        nuv_bkg += myslope.uvbkg;
+        if (myslope.uvbkg == 1)
+          nevent_uvbkg1++;
+        else if (myslope.uvbkg== 2)
+          nevent_uvbkg2++;
+        else if (myslope.uvbkg== 3)
+          nevent_uvbkg3++;
+        else if (myslope.uvbkg== 4)
+          nevent_uvbkg4++;
+      }
+
+    if (m_slopes.size() > 0 && muon_trig_ok){
       hists_2d["h_xy_trig"]->Fill(xmuon, ymuon);
+    }
 
     tree->Fill();
 
